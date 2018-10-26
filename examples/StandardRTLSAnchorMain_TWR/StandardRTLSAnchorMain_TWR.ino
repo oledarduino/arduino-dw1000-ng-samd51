@@ -18,6 +18,8 @@
 #include <DW1000NgRanging.hpp>
 #include <DW1000NgRTLS.hpp>
 
+#define ANCHOR_MAIN_DEBUG 0
+
 typedef struct Position {
     double x;
     double y;
@@ -99,10 +101,14 @@ frame_filtering_configuration_t ANCHOR_FRAME_FILTER_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
+    #if ANCHOR_MAIN_DEBUG
     Serial.println(F("### DW1000Ng-arduino-ranging-anchorMain ###"));
+    #endif
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
+    #if ANCHOR_MAIN_DEBUG
     Serial.println(F("DW1000Ng initialized ..."));
+    #endif
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
@@ -115,8 +121,11 @@ void setup() {
 	
     DW1000Ng::setAntennaDelay(16436);
     
+    #if ANCHOR_MAIN_DEBUG
     Serial.println(F("Committed configuration ..."));
+    #endif
     // DEBUG chip info and registers pretty printed
+    #if ANCHOR_MAIN_DEBUG
     char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
     Serial.print("Device ID: "); Serial.println(msg);
@@ -126,6 +135,7 @@ void setup() {
     Serial.print("Network ID & Device Address: "); Serial.println(msg);
     DW1000Ng::getPrintableDeviceMode(msg);
     Serial.print("Device mode: "); Serial.println(msg);
+    #endif
     // attach callback for (successfully) sent and received messages
     DW1000Ng::attachSentHandler(handleSent);
     DW1000Ng::attachReceivedHandler(handleReceived);
@@ -207,6 +217,9 @@ void loop() {
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
+            #if ANCHOR_MAIN_DEBUG
+            Serial.println("Reset");
+            #endif
             resetInactive();
         }
         return;
