@@ -104,8 +104,8 @@ void setup() {
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
-    char msg[128];
     #if TAG_DEBUG
+    char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
     Serial.print("Device ID: "); Serial.println(msg);
     DW1000Ng::getPrintableExtendedUniqueIdentifier(msg);
