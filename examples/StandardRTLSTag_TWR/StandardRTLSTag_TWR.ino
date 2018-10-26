@@ -20,6 +20,8 @@
 #include <DW1000NgRanging.hpp>
 #include <DW1000NgRTLS.hpp>
 
+#define TAG_DEBUG 0
+
 // connection pins
 const uint8_t PIN_RST = 9; // reset pin
 const uint8_t PIN_IRQ = 2; // irq pin
@@ -81,10 +83,14 @@ frame_filtering_configuration_t TAG_FRAME_FILTER_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
+    #if TAG_DEBUG
     Serial.println(F("### DW1000Ng-arduino-ranging-tag ###"));
+    #endif
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
+    #if TAG_DEBUG
     Serial.println("DW1000Ng initialized ...");
+    #endif
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
@@ -99,6 +105,7 @@ void setup() {
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
     char msg[128];
+    #if TAG_DEBUG
     DW1000Ng::getPrintableDeviceIdentifier(msg);
     Serial.print("Device ID: "); Serial.println(msg);
     DW1000Ng::getPrintableExtendedUniqueIdentifier(msg);
@@ -107,6 +114,7 @@ void setup() {
     Serial.print("Network ID & Device Address: "); Serial.println(msg);
     DW1000Ng::getPrintableDeviceMode(msg);
     Serial.print("Device mode: "); Serial.println(msg);
+    #endif
     // attach callback for (successfully) sent and received messages
     DW1000Ng::attachSentHandler(handleSent);
     DW1000Ng::attachReceivedHandler(handleReceived);
@@ -181,8 +189,10 @@ void loop() {
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
+            #if TAG_DEBUG
             String tempString= "Time out! The lost anchor is:" ; tempString += (char)anchor_address[0] + (char)anchor_address[1];
             Serial.println(tempString);
+            #endif
             reset();
         }
         return;
@@ -206,18 +216,22 @@ void loop() {
                 /* Received Response to poll */
                 timePollSent = DW1000Ng::getTransmitTimestamp();
                 timePollAckReceived = DW1000Ng::getReceiveTimestamp();
-                transmitFinalMessage();
+                #if TAG_DEBUG
                 String tempString= "Receiving messages from:" ; tempString += (char)anchor_address[0] + (char)anchor_address[1];
                 tempString +=" and send it back.";
                 Serial.println(tempString);
+                #endif
+                transmitFinalMessage();
                 noteActivity();
                 return;
             } else if (recv_data[10] == RANGING_CONFIRM) {
                 /* Received ranging confirm */
                 memcpy(anchor_address, &recv_data[11], 2);
-                transmitPoll();
+                #if TAG_DEBUG
                 String tempString= "Sending messages to NEW Anchor:" ; tempString += (char) anchor_address[0] + (char)anchor_address[1];
                 Serial.println(tempString);
+                #endif
+                transmitPoll();
                 noteActivity();
                 return;
             } else if(recv_data[10] == ACTIVITY_FINISHED) {
@@ -228,12 +242,15 @@ void loop() {
                 } else if(multiplier == 0x02) {
                     resetPeriod *= 1000;
                 }
-                Serial.println("One Range is finishend, and the modules is going to sleep.");
+                #if TAG_DEBUG
+                Serial.println("One Range is finishend, and the module is going to sleep.");
+                #endif
 
                 /* Sleep until next blink to save power */
                 DW1000Ng::deepSleep();
                 delay(resetPeriod);
                 DW1000Ng::spiWakeup();
+                DW1000Ng::setEUI("AA:BB:CC:DD:EE:FF:00:00"); /* Deepsleep doesn't preserve eui */
 
                 transmitBlink();
                 noteActivity();
@@ -247,10 +264,12 @@ void loop() {
         if(recv_data[15] == RANGING_INITIATION) {
             DW1000Ng::setDeviceAddress(DW1000NgUtils::bytesAsValue(&recv_data[16], 2));
             memcpy(anchor_address, &recv_data[13], 2);
-            transmitPoll();
+            #if TAG_DEBUG
             String tempString= "Receiving messages from:" ; tempString += (char)anchor_address[0] + (char)anchor_address[1];
             tempString +=" and send it back.";
             Serial.println(tempString);
+            #endif
+            transmitPoll();
             noteActivity();
             return;
         }
